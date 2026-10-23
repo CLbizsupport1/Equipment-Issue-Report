@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "settings": {
+    "titleEn": "Equipment Issue Report",
+    "titleCn": "设备问题报告",
+    "emailTo": "sg.sha.cl-bizsupport@dsv.com",
+    "subjectPrefix": "Equipment Issue",
+    "maxMB": 20,
+    "pinHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+  },
+  "equipment": [
+    {
+      "id": "printer",
+      "en": "Mobile Printer",
+      "cn": "移动打印机",
+      "icon": "🖨️",
+      "img": "",
+      "askWhich": true,
+      "whichEn": "Which printer?",
+      "whichCn": "哪台打印机？",
+      "whichPh": "e.g. Printer ID 打印机编号",
+      "allowOthers": true,
+      "problems": [
+        {
+          "id": "p1",
+          "en": "Delay printing of pick ticket",
+          "cn": "拣货单打印延迟"
+        },
+        {
+          "id": "p2",
+          "en": "Pick ticket not coming out",
+          "cn": "拣货单打印不出来"
+        }
+      ]
+    },
+    {
+      "id": "rfgun",
+      "en": "RF Gun",
+      "cn": "RF扫描枪",
+      "icon": "🔫",
+      "img": "",
+      "askWhich": true,
+      "whichEn": "Which RF gun?",
+      "whichCn": "哪支扫描枪？",
+      "whichPh": "e.g. RF gun no. 扫描枪编号",
+      "allowOthers": true,
+      "problems": [
+        {
+          "id": "p1",
+          "en": "Unable to scan barcode",
+          "cn": "无法扫描条码"
+        }
+      ]
+    },
+    {
+      "id": "laptop",
+      "en": "Applied Laptop",
+      "cn": "笔记本电脑",
+      "icon": "💻",
+      "img": "",
+      "askWhich": true,
+      "whichEn": "Which laptop?",
+      "whichCn": "哪台电脑？",
+      "whichPh": "e.g. asset tag / PC name 资产编号",
+      "allowOthers": true,
+      "problems": [
+        {
+          "id": "p1",
+          "en": "Unable to login",
+          "cn": "无法登录"
+        }
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "staffId",
+      "en": "Staff ID",
+      "cn": "员工编号",
+      "type": "text",
+      "required": true,
+      "half": false,
+      "def": "remember",
+      "upper": true,
+      "ph": "e.g. CL12345",
+      "options": ""
+    },
+    {
+      "id": "date",
+      "en": "Date",
+      "cn": "日期",
+      "type": "date",
+      "required": true,
+      "half": true,
+      "def": "today",
+      "upper": false,
+      "ph": "",
+      "options": ""
+    },
+    {
+      "id": "time",
+      "en": "Time",
+      "cn": "时间",
+      "type": "time",
+      "required": true,
+      "half": true,
+      "def": "now",
+      "upper": false,
+      "ph": "",
+      "options": ""
+    },
+    {
+      "id": "aisle",
+      "en": "Aisle",
+      "cn": "通道",
+      "type": "text",
+      "required": true,
+      "half": true,
+      "def": "none",
+      "upper": true,
+      "ph": "",
+      "options": ""
+    },
+    {
+      "id": "bay",
+      "en": "Bay",
+      "cn": "货位",
+      "type": "text",
+      "required": true,
+      "half": true,
+      "def": "none",
+      "upper": true,
+      "ph": "",
+      "options": ""
+    }
+  ]
+}

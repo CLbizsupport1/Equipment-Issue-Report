@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Equipment Issue Report</title>
+<style>
+/* ======================================================================
+   EQUIPMENT ISSUE REPORT — DSV
+   Equipment, problems, questions and settings live in config.json.
+   Super users edit them directly on the form: tap the title 5 times.
+   ====================================================================== */
+:root{
+  --navy:#0A2868; --navy-2:#13347f; --bg:#eef1f6; --card:#fff; --ink:#1b2333;
+  --muted:#6b7487; --line:#d9dee8; --err:#c62828; --ok:#1e8e3e; --sel:#e7eefc; --amber:#b26a00; --edit:#e8a317;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;font-size:16px}
+header{background:var(--navy);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5;padding-top:calc(14px + env(safe-area-inset-top));user-select:none}
+header .co{font-size:12px;letter-spacing:.12em;opacity:.75;font-weight:600}
+header .trow{display:flex;align-items:center;gap:10px}
+header h1{margin:2px 0 0;font-size:19px;font-weight:700;cursor:default;flex:1}
+header h1 small{display:block;font-size:14px;font-weight:500;opacity:.85}
+main{max-width:560px;margin:0 auto;padding:14px 14px 40px}
+body.editing main{padding-bottom:110px}
+.card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(10,40,104,.08)}
+.card h2{margin:0 0 12px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h2 .n{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+label.lbl{display:block;font-size:14px;font-weight:600;margin:12px 0 6px}
+label.lbl .cn{font-weight:500;color:var(--muted)}
+.req{color:var(--err)}
+input[type=text],input[type=date],input[type=time],input[type=password],select,textarea{
+  width:100%;min-width:0;font:inherit;font-size:16px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);
+  -webkit-appearance:none;appearance:none}
+input[type=date],input[type=time]{min-height:48px;display:block}
+input::-webkit-date-and-time-value{text-align:left}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--navy) 50%),linear-gradient(135deg,var(--navy) 50%,transparent 50%);
+  background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy)}
+.invalid{border-color:var(--err)!important;background:#fff6f6!important}
+.errmsg{color:var(--err);font-size:13px;margin-top:4px;display:none}
+.show{display:block!important}
+
+.qgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 10px;margin-top:-12px}
+.q{min-width:0}
+.q.full{grid-column:1/-1}
+
+.equip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.equip .tile{position:relative;font:inherit;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px 6px;cursor:pointer;color:var(--ink);
+  display:flex;flex-direction:column;align-items:center;gap:4px;min-height:96px}
+.equip .tile .ic{font-size:28px;line-height:1;height:36px;display:flex;align-items:center}
+.equip .tile .ic img{width:36px;height:36px;object-fit:contain}
+.equip .tile .en{font-size:13px;font-weight:700;text-align:center}
+.equip .tile .cn{font-size:12px;color:var(--muted);text-align:center}
+.equip .tile.on{border-color:var(--navy);background:var(--sel);box-shadow:inset 0 0 0 1px var(--navy)}
+.equip.invalid{border:none!important;background:none!important}
+.equip.invalid .tile{border-color:var(--err)}
+
+#problemPanel{display:none;margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;animation:pop .2s ease}
+@keyframes pop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.opts{display:flex;flex-direction:column;gap:8px}
+.optrow{display:flex;gap:6px;align-items:stretch}
+.opt{flex:1;display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:10px;padding:12px;cursor:pointer;background:#fff}
+.opt input{width:20px;height:20px;accent-color:var(--navy);margin:0;flex:none}
+.opt .t{font-size:15px;font-weight:600}
+.opt .t small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.opt.on{border-color:var(--navy);background:var(--sel)}
+.opts.invalid .opt{border-color:var(--err)}
+#othersWrap{display:none;margin-top:8px}
+
+.attach-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:1.5px dashed var(--navy);border-radius:12px;
+  color:var(--navy);background:#f6f8fd;font:inherit;font-weight:600;cursor:pointer}
+.thumbs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.thumb{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#dfe4ee}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:24px;padding:0;cursor:pointer}
+.thumb .vtag{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 6px;border-radius:6px}
+.hint{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
+.warn{color:var(--amber)}
+
+.submit{width:100%;padding:16px;border:none;border-radius:12px;background:var(--navy);color:#fff;font:inherit;font-size:17px;font-weight:700;cursor:pointer}
+.submit:active{background:var(--navy-2)}
+.submit small{display:block;font-weight:500;font-size:13px;opacity:.85}
+
+#done{display:none;text-align:center}
+#done .big{font-size:54px;margin:10px 0}
+#done h2{justify-content:center;font-size:19px}
+#done p{color:var(--muted);margin:6px 0 14px;line-height:1.45}
+.btn2{width:100%;padding:14px;border-radius:12px;font:inherit;font-weight:700;cursor:pointer;margin-top:10px}
+.btn2.pri{background:var(--navy);color:#fff;border:none}
+.btn2.sec{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+.btn2.dng{background:#fff;color:var(--err);border:1.5px solid #efc2c2}
+.btn2:disabled{opacity:.5}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;
+  opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center;z-index:90}
+body.editing #toast{bottom:96px}
+#toast.on{opacity:.95}
+
+/* PIN modal */
+#pinModal{position:fixed;inset:0;background:rgba(10,20,50,.55);display:none;align-items:center;justify-content:center;z-index:80;padding:16px}
+#pinModal .box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px}
+#pinModal h3{margin:0 0 4px;color:var(--navy)}
+#pinModal .row{display:flex;gap:8px;margin-top:14px}
+#pinModal .row button{flex:1;margin:0}
+
+/* ================= EDIT MODE ================= */
+#editBanner{display:none;background:#fff4dc;color:#6b4300;border-bottom:1px solid #f0d49a;padding:9px 16px;font-size:13px;text-align:center;line-height:1.4}
+body.editing #editBanner{display:block}
+.pen{display:none;border:none;background:var(--edit);color:#fff;border-radius:50%;width:30px;height:30px;font-size:14px;line-height:30px;padding:0;cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);flex:none}
+body.editing .pen{display:inline-block}
+.equip .tile .pen{position:absolute;top:-8px;right:-8px;width:28px;height:28px;line-height:28px;font-size:13px}
+.lblrow{display:flex;align-items:center;gap:6px}
+.lblrow label.lbl{flex:1}
+.lblrow .pen{margin-top:6px;width:26px;height:26px;line-height:26px;font-size:12px}
+.optrow .pen{align-self:center}
+.addx{display:none;width:100%;padding:11px;border:2px dashed var(--edit);border-radius:10px;background:#fffaf0;color:#8a5a00;font:inherit;font-weight:700;cursor:pointer;margin-top:8px}
+body.editing .addx{display:block}
+.equip .addx{margin-top:0;min-height:96px;border-radius:12px}
+body.editing .equip .addx{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.qgrid .addx{grid-column:1/-1;margin-top:14px}
+.offnote{display:none;font-size:13px;color:#8a5a00;background:#fffaf0;border:1px dashed var(--edit);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+body.editing .offnote{display:block}
+header .pen{width:32px;height:32px}
+
+#editBar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid var(--line);
+  box-shadow:0 -2px 10px rgba(10,40,104,.12);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+body.editing #editBar{display:block}
+#editBar .in{max-width:560px;margin:0 auto;display:flex;gap:8px}
+#editBar button{margin:0;padding:12px 8px;font-size:14px}
+#editBar .b1{flex:0 0 auto;width:52px}
+#editBar .b2{flex:1}
+#editBar .b3{flex:1.6}
+
+/* bottom sheet */
+#sheet{position:fixed;inset:0;z-index:60;display:none;background:rgba(10,20,50,.45);align-items:flex-end;justify-content:center}
+#sheet.open{display:flex}
+#sheet .sbox{background:#fff;width:100%;max-width:560px;max-height:88vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;animation:up .2s ease}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+#sheet .shead{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
+#sheet .shead h3{margin:0;flex:1;font-size:16px;color:var(--navy)}
+#sheet .sbody{padding:4px 16px calc(18px + env(safe-area-inset-bottom));overflow-y:auto}
+.sbody label.lbl{font-size:13px;margin:12px 0 4px}
+.sbody input[type=text],.sbody input[type=password],.sbody select,.sbody textarea{padding:10px;font-size:16px;border-radius:8px}
+.sbtn{border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:8px 12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.sbtn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.sbtn.dng{color:var(--err);border-color:#efc2c2}
+.sbtn:disabled{opacity:.35;cursor:default}
+.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.cnwrap{display:flex;gap:6px}
+.cnwrap input{flex:1}
+.auto{border:1.5px solid var(--navy);color:var(--navy);background:#f6f8fd;border-radius:8px;font:inherit;font-size:14px;font-weight:700;padding:0 12px;cursor:pointer}
+.chk{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;cursor:pointer}
+.chk input{width:20px;height:20px;accent-color:var(--navy);margin:0;flex:none}
+.iconrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.iconrow .prev{width:56px;height:56px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;background:#fff}
+.iconrow .prev img{width:100%;height:100%;object-fit:contain}
+.iconrow input[type=text]{width:74px;text-align:center;font-size:22px}
+.mrow{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.mrow .sbtn{flex:1}
+.sec2{margin-top:18px;padding-top:12px;border-top:1px dashed var(--line)}
+.sec2 h4{margin:0 0 4px;font-size:14px;color:var(--navy)}
+.key{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);background:#f1f3f8;border-radius:6px;padding:2px 6px;word-break:break-all}
+.gstat{font-size:13px;margin-top:8px}
+.gstat.ok{color:var(--ok)} .gstat.bad{color:var(--err)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="co">DSV</div>
+  <div class="trow">
+    <h1 id="appTitle">Equipment Issue Report<small>设备问题报告</small></h1>
+    <button class="pen" id="titlePen" title="Edit app settings">✏️</button>
+  </div>
+</header>
+<div id="editBanner">✏️ <b>Edit mode</b> — tap ✏️ to change, ＋ to add. Operators see nothing until you press <b>Save &amp; Publish</b>.<br>编辑模式 — 点 ✏️ 修改，点 ＋ 添加，按「保存并发布」后才生效。</div>
+
+<main>
+  <!-- ================= FORM ================= -->
+  <div id="form">
+    <div class="card">
+      <h2><span class="n">1</span>Problem 问题</h2>
+      <label class="lbl" style="margin-top:0">Equipment 设备 <span class="req">*</span></label>
+      <div class="equip" id="equipBtns"></div>
+      <div class="errmsg" id="err-equip">Please choose the equipment. 请选择设备。</div>
+
+      <div id="problemPanel">
+        <div id="whichOff" class="offnote"></div>
+        <div id="whichWrap">
+          <div class="lblrow"><label class="lbl" id="deviceLabel" style="margin-top:0"></label><button class="pen" id="whichPen">✏️</button></div>
+          <input type="text" id="device" autocomplete="off">
+          <div class="errmsg" id="err-device">Please state which one has the problem. 请填写具体哪台设备。</div>
+        </div>
+        <label class="lbl">What is the problem? 是什么问题？ <span class="req">*</span></label>
+        <div class="opts" id="opts"></div>
+        <button class="addx" id="addProbBtn">＋ Add problem option 添加问题选项</button>
+        <div class="errmsg" id="err-issue">Please choose a problem. 请选择问题。</div>
+        <div id="othersWrap">
+          <textarea id="othersText" placeholder="Describe the problem 请描述问题"></textarea>
+          <div class="errmsg" id="err-others">Please describe the problem. 请描述问题。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="detailsCard">
+      <h2><span class="n">2</span>Details 详情</h2>
+      <div class="qgrid" id="qgrid"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">3</span>Photo / Video 照片 / 视频 <span style="font-weight:400;color:var(--muted);font-size:13px">(optional 可选)</span></h2>
+      <button type="button" class="attach-btn" id="attachBtn">📎 Add photo or video 添加照片或视频</button>
+      <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
+      <div class="thumbs" id="thumbs"></div>
+      <div class="hint" id="sizeHint"></div>
+    </div>
+
+    <button class="submit" id="submitBtn">Submit 提交<small>Opens the email draft — press Send in your email app 打开邮件草稿后请按发送</small></button>
+  </div>
+
+  <!-- ================= DONE ================= -->
+  <div id="done" class="card">
+    <div class="big">📨</div>
+    <h2>Email draft opened 邮件草稿已打开</h2>
+    <p id="doneMsg"></p>
+    <button class="btn2 pri" id="sendAgainBtn">Send again 再次发送</button>
+    <button class="btn2 sec" id="homeBtn">New report 新报告</button>
+  </div>
+</main>
+
+<!-- edit toolbar -->
+<div id="editBar"><div class="in">
+  <button class="btn2 sec b1" id="ebSettings" title="Settings">⚙️</button>
+  <button class="btn2 sec b2" id="ebExit">Exit 退出</button>
+  <button class="btn2 pri b3" id="ebSave">💾 Save &amp; Publish 发布</button>
+</div></div>
+
+<!-- bottom sheet editor -->
+<div id="sheet"><div class="sbox">
+  <div class="shead"><h3 id="sheetTitle"></h3><button class="sbtn pri" id="sheetDone">Done 完成</button></div>
+  <div class="sbody" id="sheetBody"></div>
+</div></div>
+
+<div id="pinModal">
+  <div class="box">
+    <h3>Super User 管理员</h3>
+    <div class="hint" style="margin-top:0">Enter PIN 请输入密码</div>
+    <input type="password" id="pinInput" inputmode="numeric" autocomplete="off" style="margin-top:10px">
+    <div class="errmsg" id="pinErr">Wrong PIN 密码错误</div>
+    <div class="row">
+      <button class="btn2 sec" id="pinCancel">Cancel</button>
+      <button class="btn2 pri" id="pinOk">Enter</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="iconInput" accept="image/*" hidden>
+<input type="file" id="importInput" accept=".json,application/json" hidden>
+
+<script>
+/* ======================================================================
+   FIXED SETTINGS (the Power Automate flow depends on these)
+   ====================================================================== */
+const DATA_MARKER = "===EQUIP===";      // differs from the 5S app's ===DATA=== so the 5S flow ignores these emails
+const DATA_END    = "===END===";
+const REPORT_FILE = "Equipment-Report.txt";
+const CONFIG_URL  = "config.json";      // lives next to index.html in the GitHub repo
+
+/* ======================================================================
+   DEFAULT CONFIG — used only if config.json can't be loaded. Default PIN: 1234
+   ====================================================================== */
+const DEFAULT_CONFIG = /*CFG*/{
+  "version": 1,
+  "settings": {
+    "titleEn": "Equipment Issue Report",
+    "titleCn": "设备问题报告",
+    "emailTo": "sg.sha.cl-bizsupport@dsv.com",
+    "subjectPrefix": "Equipment Issue",
+    "maxMB": 20,
+    "pinHash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+  },
+  "equipment": [
+    { "id": "printer", "en": "Mobile Printer", "cn": "移动打印机", "icon": "🖨️", "img": "",
+      "askWhich": true, "whichEn": "Which printer?", "whichCn": "哪台打印机？", "whichPh": "e.g. Printer ID 打印机编号",
+      "allowOthers": true,
+      "problems": [
+        { "id": "p1", "en": "Delay printing of pick ticket", "cn": "拣货单打印延迟" },
+        { "id": "p2", "en": "Pick ticket not coming out", "cn": "拣货单打印不出来" }
+      ] },
+    { "id": "rfgun", "en": "RF Gun", "cn": "RF扫描枪", "icon": "🔫", "img": "",
+      "askWhich": true, "whichEn": "Which RF gun?", "whichCn": "哪支扫描枪？", "whichPh": "e.g. RF gun no. 扫描枪编号",
+      "allowOthers": true,
+      "problems": [
+        { "id": "p1", "en": "Unable to scan barcode", "cn": "无法扫描条码" }
+      ] },
+    { "id": "laptop", "en": "Applied Laptop", "cn": "笔记本电脑", "icon": "💻", "img": "",
+      "askWhich": true, "whichEn": "Which laptop?", "whichCn": "哪台电脑？", "whichPh": "e.g. asset tag / PC name 资产编号",
+      "allowOthers": true,
+      "problems": [
+        { "id": "p1", "en": "Unable to login", "cn": "无法登录" }
+      ] }
+  ],
+  "questions": [
+    { "id": "staffId", "en": "Staff ID", "cn": "员工编号", "type": "text", "required": true, "half": false, "def": "remember", "upper": true, "ph": "e.g. CL12345", "options": "" },
+    { "id": "date",    "en": "Date",     "cn": "日期",     "type": "date", "required": true, "half": true,  "def": "today",    "upper": false, "ph": "", "options": "" },
+    { "id": "time",    "en": "Time",     "cn": "时间",     "type": "time", "required": true, "half": true,  "def": "now",      "upper": false, "ph": "", "options": "" },
+    { "id": "aisle",   "en": "Aisle",    "cn": "通道",     "type": "text", "required": true, "half": true,  "def": "none",     "upper": true,  "ph": "", "options": "" },
+    { "id": "bay",     "en": "Bay",      "cn": "货位",     "type": "text", "required": true, "half": true,  "def": "none",     "upper": true,  "ph": "", "options": "" }
+  ]
+}/*ENDCFG*/;
+
+const OTHERS = { en:"Others", cn:"其他" };
+
+/* ======================================================================
+   HELPERS
+   ====================================================================== */
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+const IS_ANDROID = /Android/i.test(navigator.userAgent);
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function todayISO(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function nowHM(){ const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function toast(msg,ms=2600){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),ms); }
+function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
+function slug(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().split(" ").map((w,i)=>i?w.charAt(0).toUpperCase()+w.slice(1):w).join("") || ""; }
+function parseOpts(text){
+  return String(text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{ const [en,cn]=l.split("|").map(x=>(x||"").trim()); return { en, cn:cn||"" }; });
+}
+function b64encUtf8(str){ const b=new TextEncoder().encode(str); let s=""; for(let i=0;i<b.length;i+=0x8000) s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000)); return btoa(s); }
+function b64decUtf8(b64){ const s=atob(b64.replace(/\s/g,"")); const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i); return new TextDecoder().decode(b); }
+/* SHA-256 (works offline / without crypto.subtle) */
+function sha256(str){
+  const rr=(v,a)=>(v>>>a)|(v<<(32-a)); const H=[],K=[]; let n=0; const comp={};
+  for(let c=2;n<64;c++){ if(!comp[c]){ for(let i=0;i<313;i+=c)comp[i]=c; if(n<8)H[n]=(Math.pow(c,.5)*4294967296)|0; K[n++]=(Math.pow(c,1/3)*4294967296)|0; } }
+  const b=Array.from(new TextEncoder().encode(str)); const bitLen=b.length*8;
+  b.push(0x80); while(b.length%64!==56) b.push(0);
+  const hi=Math.floor(bitLen/4294967296), lo=bitLen>>>0;
+  for(let i=3;i>=0;i--) b.push((hi>>>(i*8))&255); for(let i=3;i>=0;i--) b.push((lo>>>(i*8))&255);
+  for(let j=0;j<b.length;j+=64){
+    const w=[]; for(let i=0;i<16;i++) w[i]=(b[j+i*4]<<24)|(b[j+i*4+1]<<16)|(b[j+i*4+2]<<8)|b[j+i*4+3];
+    let A=H[0],B=H[1],C=H[2],D=H[3],E=H[4],F=H[5],G=H[6],Hh=H[7];
+    for(let i=0;i<64;i++){
+      if(i>=16){ const a=w[i-15],z=w[i-2]; w[i]=(w[i-16]+(rr(a,7)^rr(a,18)^(a>>>3))+w[i-7]+(rr(z,17)^rr(z,19)^(z>>>10)))|0; }
+      const t1=(Hh+(rr(E,6)^rr(E,11)^rr(E,25))+((E&F)^(~E&G))+K[i]+w[i])|0;
+      const t2=((rr(A,2)^rr(A,13)^rr(A,22))+((A&B)^(A&C)^(B&C)))|0;
+      Hh=G;G=F;F=E;E=(D+t1)|0;D=C;C=B;B=A;A=(t1+t2)|0;
+    }
+    H[0]=(H[0]+A)|0;H[1]=(H[1]+B)|0;H[2]=(H[2]+C)|0;H[3]=(H[3]+D)|0;H[4]=(H[4]+E)|0;H[5]=(H[5]+F)|0;H[6]=(H[6]+G)|0;H[7]=(H[7]+Hh)|0;
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,"0")).join("");
+}
+function normalize(c){
+  c = c && typeof c==="object" ? c : {};
+  const d = DEFAULT_CONFIG;
+  c.version = Number(c.version)||1;
+  c.settings = Object.assign({}, d.settings, c.settings||{});
+  c.equipment = Array.isArray(c.equipment) ? c.equipment : clone(d.equipment);
+  c.equipment.forEach(e=>{
+    e.id=e.id||uid("e"); e.en=e.en||""; e.cn=e.cn||""; e.icon=e.icon||""; e.img=e.img||"";
+    e.askWhich=e.askWhich!==false; e.whichEn=e.whichEn||"Which one?"; e.whichCn=e.whichCn||"具体哪台？"; e.whichPh=e.whichPh||"";
+    e.allowOthers=e.allowOthers!==false;
+    e.problems=Array.isArray(e.problems)?e.problems:[];
+    e.problems.forEach(p=>{ p.id=p.id||uid("p"); p.en=p.en||""; p.cn=p.cn||""; });
+  });
+  c.questions = Array.isArray(c.questions) ? c.questions : clone(d.questions);
+  c.questions.forEach(q=>{
+    q.id=q.id||uid("q"); q.en=q.en||""; q.cn=q.cn||""; q.type=q.type||"text";
+    q.required=!!q.required; q.half=!!q.half; q.def=q.def||"none"; q.upper=!!q.upper; q.ph=q.ph||""; q.options=q.options||"";
+  });
+  return c;
+}
+
+/* ======================================================================
+   CONFIG LOADING
+   ====================================================================== */
+let cfg = normalize(clone(DEFAULT_CONFIG));   // published config
+let draft = null;                             // super user's working copy
+let editMode = false;
+const cur = ()=> editMode ? draft : cfg;      // what the form shows
+
+async function loadConfig(){
+  let cached = null; try{ cached = JSON.parse(LS.get("eqPublishedCache")||"null"); }catch(e){}
+  try{
+    const r = await fetch(CONFIG_URL + "?v=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    // right after publishing, GitHub Pages may still serve the old file for a minute — keep the newer one
+    if(cached && (Number(cached.version)||0) > (Number(j.version)||0)){ cfg = normalize(cached); return; }
+    cfg = normalize(j); LS.set("eqPublishedCache", JSON.stringify(j));
+  }catch(e){
+    cfg = normalize(cached || clone(DEFAULT_CONFIG));
+  }
+}
+
+/* ======================================================================
+   FORM
+   ====================================================================== */
+const state = { equip:null, issueIdx:null, files:[], last:null };
+
+function renderAll(){
+  const C = cur();
+  $("appTitle").innerHTML = `${esc(C.settings.titleEn)}<small>${esc(C.settings.titleCn)}</small>`;
+  document.title = C.settings.titleEn;
+  renderEquip(); renderQuestions();
+  if(state.equip!==null && state.equip < C.equipment.length) selectEquip(state.equip, true, state.issueIdx);
+  else { state.equip=null; state.issueIdx=null; $("problemPanel").style.display="none"; }
+}
+function iconHTML(e){ return e.img ? `<img src="${e.img}" alt="">` : esc(e.icon || "🔧"); }
+
+function renderEquip(){
+  const E = cur().equipment;
+  $("equipBtns").innerHTML = E.map((p,i)=>
+    `<div class="tile ${state.equip===i?"on":""}" data-i="${i}" role="button"><span class="ic">${iconHTML(p)}</span><span class="en">${esc(p.en)||"<i>(no name)</i>"}</span><span class="cn">${esc(p.cn)}</span><button class="pen" data-pen="${i}">✏️</button></div>`).join("")
+    + `<button class="addx" id="addEquipBtn"><span style="font-size:24px">＋</span>Add equipment<br>添加设备</button>`;
+  $("equipBtns").querySelectorAll(".tile").forEach(b=>b.onclick=e=>{
+    if(e.target.closest(".pen")){ openSheet(()=>sheetEquip(+b.dataset.i)); return; }
+    selectEquip(+b.dataset.i);
+  });
+  $("addEquipBtn").onclick = ()=>{
+    const n = { id:uid("e"), en:"", cn:"", icon:"🔧", img:"", askWhich:true, whichEn:"Which one?", whichCn:"具体哪台？", whichPh:"", allowOthers:true, problems:[] };
+    draft.equipment.push(n); changed(); const i = draft.equipment.length-1; selectEquip(i);
+    openSheet(()=>sheetEquip(i), ()=>{ if(!draft.equipment[i] || draft.equipment[i].en.trim()) return; draft.equipment.splice(i,1); state.equip=null; changed(); });
+  };
+}
+function issueList(p){ return p.allowOthers ? [...p.problems, OTHERS] : [...p.problems]; }
+function selectEquip(i, keep, keepIssue){
+  const C = cur();
+  state.equip = i; state.issueIdx = keep ? (keepIssue!=null && keepIssue < issueList(C.equipment[i]).length ? keepIssue : null) : null;
+  $("equipBtns").querySelectorAll(".tile").forEach(b=>b.classList.toggle("on", +b.dataset.i===i));
+  $("equipBtns").classList.remove("invalid"); $("err-equip").classList.remove("show");
+  const p = C.equipment[i];
+  $("whichWrap").style.display = p.askWhich ? "block" : "none";
+  $("whichOff").innerHTML = p.askWhich ? "" : `“Which one?” question is off for this equipment. <button class="pen" style="width:24px;height:24px;line-height:24px;font-size:11px" onclick="openSheet(()=>sheetEquip(${i}))">✏️</button>`;
+  $("whichOff").style.display = p.askWhich ? "none" : "";
+  $("deviceLabel").innerHTML = `${esc(p.whichEn)} <span class="cn">${esc(p.whichCn)}</span> <span class="req">*</span>`;
+  $("device").placeholder = p.whichPh || "";
+  if(!keep){ $("device").classList.remove("invalid"); $("err-device").classList.remove("show"); }
+  $("opts").innerHTML = issueList(p).map((o,k)=>{
+    const isO = p.allowOthers && k===p.problems.length;
+    return `<div class="optrow"><label class="opt ${state.issueIdx===k?"on":""}" data-k="${k}"><input type="radio" name="issue" value="${k}" ${state.issueIdx===k?"checked":""}><span class="t">${esc(o.en)||"<i>(empty)</i>"}<small>${esc(o.cn)}</small></span></label>`
+      + `<button class="pen" data-k="${k}" ${isO?'data-others="1"':""}>✏️</button></div>`;
+  }).join("");
+  $("opts").querySelectorAll("input").forEach(r=>r.onchange=()=>selectIssue(+r.value));
+  $("opts").querySelectorAll(".pen").forEach(b=>b.onclick=()=>{
+    if(b.dataset.others) openSheet(()=>sheetEquip(i)); else openSheet(()=>sheetProblem(i,+b.dataset.k));
+  });
+  $("othersWrap").style.display = state.issueIdx!==null && isOthersIdx(state.issueIdx) ? "block" : "none";
+  $("problemPanel").style.display = "block";
+  if(!keep){
+    if(p.askWhich && !editMode) setTimeout(()=>$("device").focus({preventScroll:true}),50);
+    $("problemPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+}
+$("whichPen").onclick = ()=>openSheet(()=>sheetEquip(state.equip));
+$("addProbBtn").onclick = ()=>{
+  const i = state.equip; const P = draft.equipment[i].problems;
+  P.push({id:uid("p"),en:"",cn:""}); changed(); const k = P.length-1;
+  openSheet(()=>sheetProblem(i,k), ()=>{ const it=draft.equipment[i] && draft.equipment[i].problems[k]; if(it && !it.en.trim()){ draft.equipment[i].problems.splice(k,1); changed(); } });
+};
+function isOthersIdx(k){ const p=cur().equipment[state.equip]; return p.allowOthers && k===p.problems.length; }
+function selectIssue(k){
+  state.issueIdx = k;
+  $("opts").querySelectorAll(".opt").forEach(o=>o.classList.toggle("on", +o.dataset.k===k));
+  $("opts").classList.remove("invalid"); $("err-issue").classList.remove("show");
+  $("othersWrap").style.display = isOthersIdx(k) ? "block" : "none";
+  if(isOthersIdx(k) && !editMode) setTimeout(()=>$("othersText").focus(),50);
+}
+
+function renderQuestions(){
+  const Q = cur().questions;
+  const prev = {}; Q.forEach(q=>{ const el=$("q_"+q.id); if(el) prev[q.id]=el.value; });
+  $("detailsCard").style.display = (Q.length || editMode) ? "block" : "none";
+  $("qgrid").innerHTML = Q.map((q,i)=>{
+    const id = "q_"+q.id, ph = q.ph ? ` placeholder="${esc(q.ph)}"` : "";
+    let input;
+    switch(q.type){
+      case "longtext": input = `<textarea id="${id}"${ph}></textarea>`; break;
+      case "date":     input = `<input type="date" id="${id}">`; break;
+      case "time":     input = `<input type="time" id="${id}">`; break;
+      case "number":   input = `<input type="text" inputmode="decimal" id="${id}" autocomplete="off"${ph}>`; break;
+      case "select":   input = `<select id="${id}"><option value="">— Select 请选择 —</option>${
+                          parseOpts(q.options).map(o=>`<option value="${esc(o.en)}">${esc(o.en)}${o.cn?" "+esc(o.cn):""}</option>`).join("")}</select>`; break;
+      default:         input = `<input type="text" id="${id}" autocomplete="off"${q.upper?' autocapitalize="characters"':""}${ph}>`;
+    }
+    return `<div class="q ${q.half?"":"full"}"><div class="lblrow"><label class="lbl">${esc(q.en)||"<i>(no text)</i>"} <span class="cn">${esc(q.cn)}</span>${q.required?' <span class="req">*</span>':""}</label><button class="pen" data-q="${i}">✏️</button></div>${input}<div class="errmsg" id="err_${id}">Please fill in. 请填写。</div></div>`;
+  }).join("") + `<button class="addx" id="addQBtn">＋ Add question 添加问题</button>`;
+  Q.forEach(q=>{
+    const el = $("q_"+q.id);
+    if(q.id in prev) el.value = prev[q.id]; else el.value = defaultFor(q);
+    if(q.def==="remember") el.addEventListener("change", e=>LS.set("eqRemember_"+q.id, e.target.value.trim()));
+  });
+  $("qgrid").querySelectorAll(".pen").forEach(b=>b.onclick=()=>openSheet(()=>sheetQuestion(+b.dataset.q)));
+  $("addQBtn").onclick = ()=>{
+    const q = { id:"", en:"", cn:"", type:"text", required:false, half:false, def:"none", upper:false, ph:"", options:"" };
+    draft.questions.push(q); changed(); const i = draft.questions.length-1;
+    openSheet(()=>sheetQuestion(i), ()=>{
+      const it = draft.questions[i]; if(!it) return;
+      if(!it.en.trim()){ draft.questions.splice(i,1); changed(); return; }
+      if(!it.id){ let base=slug(it.en)||"q", id=base, n=2; while(draft.questions.some((x,j)=>j!==i && x.id===id)) id=base+n++; it.id=id; changed(); }
+    });
+  };
+}
+function defaultFor(q){ return q.def==="today" ? todayISO() : q.def==="now" ? nowHM() : q.def==="remember" ? (LS.get("eqRemember_"+q.id)||"") : ""; }
+function applyDefaults(){ cur().questions.forEach(q=>{ const el=$("q_"+q.id); if(el) el.value = defaultFor(q); }); }
+
+/* ---------- Attachments ---------- */
+$("attachBtn").onclick = ()=>$("fileInput").click();
+$("fileInput").onchange = e=>{
+  for(const f of e.target.files){
+    if(!/^(image|video)\//.test(f.type) && !/\.(heic|heif|mov|mp4|jpg|jpeg|png)$/i.test(f.name)) continue;
+    state.files.push({ file:f, url:URL.createObjectURL(f) });
+  }
+  e.target.value = ""; renderThumbs();
+};
+function renderThumbs(){
+  $("thumbs").innerHTML = state.files.map((x,i)=>{
+    const isVid = (x.file.type||"").startsWith("video") || /\.(mov|mp4)$/i.test(x.file.name);
+    const media = isVid ? `<video src="${x.url}#t=0.1" muted playsinline preload="metadata"></video><span class="vtag">▶ video</span>` : `<img src="${x.url}" alt="">`;
+    return `<div class="thumb">${media}<button class="x" data-i="${i}" aria-label="Remove">×</button></div>`;
+  }).join("");
+  $("thumbs").querySelectorAll(".x").forEach(b=>b.onclick=()=>{ const i=+b.dataset.i; URL.revokeObjectURL(state.files[i].url); state.files.splice(i,1); renderThumbs(); });
+  const mb = state.files.reduce((s,x)=>s+x.file.size,0)/1048576;
+  $("sizeHint").innerHTML = state.files.length
+    ? `${state.files.length} file(s), ${mb.toFixed(1)} MB` + (mb>cur().settings.maxMB ? ` <span class="warn">— large files may fail to send. Use a shorter video. 文件太大可能无法发送，请缩短视频。</span>` : "")
+    : "";
+}
+
+/* ---------- Validate + collect ---------- */
+function collect(){
+  const C = cur();
+  let firstBad = null;
+  const mark = (bad, el, errId)=>{
+    if(el) el.classList.toggle("invalid", bad);
+    if(errId) $(errId).classList.toggle("show", bad);
+    if(bad && !firstBad) firstBad = el;
+  };
+  mark(state.equip===null, $("equipBtns"), "err-equip");
+  let p=null;
+  if(state.equip!==null){
+    p = C.equipment[state.equip];
+    if(p.askWhich) mark(!$("device").value.trim(), $("device"), "err-device");
+    mark(state.issueIdx===null, $("opts"), "err-issue");
+    if(state.issueIdx!==null && isOthersIdx(state.issueIdx)) mark(!$("othersText").value.trim(), $("othersText"), "err-others");
+  }
+  const answers = {}, answerList = [];
+  C.questions.forEach(q=>{
+    const el = $("q_"+q.id); let v = (el.value||"").trim();
+    if(q.upper) v = v.toUpperCase();
+    mark(q.required && !v, el, "err_q_"+q.id);
+    answers[q.id] = v; answerList.push({ key:q.id, en:q.en, cn:q.cn, value:v });
+  });
+  if(firstBad){ firstBad.scrollIntoView({behavior:"smooth",block:"center"}); toast("Please complete the highlighted fields 请填写标红的栏位"); return null; }
+
+  const isOthers = isOthersIdx(state.issueIdx);
+  const opt = issueList(p)[state.issueIdx];
+  const dq = C.questions.find(q=>q.type==="date"), tq = C.questions.find(q=>q.type==="time");
+  return {
+    equipment: p.en, equipmentCn: p.cn, equipmentId: p.id,
+    device: p.askWhich ? $("device").value.trim() : "",
+    issue: opt.en, issueCn: opt.cn, isOthers,
+    othersText: isOthers ? $("othersText").value.trim() : "",
+    answers,
+    details: answerList.map(a=>`${a.en}: ${a.value}`).join(" | "),
+    _answerList: answerList,
+    _date: (dq && answers[dq.id]) || todayISO(),
+    _time: (tq && answers[tq.id]) || nowHM(),
+    attachments: state.files.length,
+    submittedAt: new Date().toISOString()
+  };
+}
+
+/* ---------- Email ---------- */
+function buildSubject(d){ return `${cur().settings.subjectPrefix} - ${d.equipment} - ${d.issue} - ${d._date} ${d._time}`; }
+function buildBody(d, leadSubject){
+  const S = cur().settings, L = [];
+  if(leadSubject){ L.push(buildSubject(d)); L.push(`SEND TO: ${S.emailTo}`); L.push(""); }
+  L.push(`${S.titleEn.toUpperCase()} ${S.titleCn}`);
+  L.push(`Equipment 设备: ${d.equipment} ${d.equipmentCn}`);
+  if(d.device) L.push(`Which one 具体设备: ${d.device}`);
+  L.push(`Problem 问题: ${d.issue} ${d.issueCn}`);
+  if(d.isOthers) L.push(`Details 描述: ${d.othersText}`);
+  d._answerList.forEach(a=>L.push(`${a.en}${a.cn?" "+a.cn:""}: ${a.value}`));
+  L.push(`Attachments 附件: ${d.attachments}`);
+  L.push("");
+  const data = Object.assign({}, d); delete data._answerList; delete data._date; delete data._time;
+  data.date = d._date; data.time = d._time;
+  L.push(DATA_MARKER); L.push(JSON.stringify(data)); L.push(DATA_END);
+  return L.join("\n");
+}
+function openMailto(d){
+  window.location.href = `mailto:${cur().settings.emailTo}?subject=${encodeURIComponent(buildSubject(d))}&body=${encodeURIComponent(buildBody(d,false))}`;
+}
+function send(d, files){
+  if(files.length){
+    const report = new File([buildBody(d,false)], REPORT_FILE, {type:"text/plain"});
+    const all = [...files, report];
+    if(navigator.canShare && navigator.canShare({files:all})){
+      try{ navigator.clipboard && navigator.clipboard.writeText(cur().settings.emailTo).catch(()=>{}); }catch(e){}
+      navigator.share({ files:all, title:buildSubject(d), text:buildBody(d,true) })
+        .then(()=>showDone(true))
+        .catch(err=>{ if(err && err.name==="AbortError"){ toast("Cancelled 已取消"); return; } openMailto(d); showDone(false,true); });
+      return;
+    }
+    openMailto(d); showDone(false,true); return;
+  }
+  openMailto(d); showDone(false);
+}
+function showDone(viaShare, attachManually){
+  const to = esc(cur().settings.emailTo);
+  let msg;
+  if(viaShare) msg = `Choose your email app, paste <b>${to}</b> into the <b>To</b> field (already copied), then press <b>Send</b>.<br>选择邮件应用，在<b>收件人</b>栏粘贴地址（已复制），然后按<b>发送</b>。`;
+  else if(attachManually) msg = `Your device can't attach files automatically. Please attach the photo/video in the email draft, then press <b>Send</b>.<br>您的设备无法自动附加文件，请在邮件草稿中手动添加照片/视频，然后按<b>发送</b>。`;
+  else msg = IS_ANDROID
+    ? `If asked, pick your email app (e.g. Outlook), then press <b>Send</b>.<br>如有提示，请选择邮件应用（如 Outlook），然后按<b>发送</b>。`
+    : `Check the draft and press <b>Send</b>. Submitting here does not send the email.<br>请检查草稿并按<b>发送</b>。在此提交不会自动发送邮件。`;
+  $("doneMsg").innerHTML = msg;
+  showScreen("done");
+}
+function showScreen(s){
+  $("form").style.display = s==="form" ? "block" : "none";
+  $("done").style.display = s==="done" ? "block" : "none";
+  window.scrollTo(0,0);
+}
+
+$("submitBtn").onclick = ()=>{
+  const d = collect(); if(!d) return;
+  const files = state.files.map(x=>x.file);
+  state.last = { d, files };
+  send(d, files);
+};
+$("sendAgainBtn").onclick = ()=>{ if(state.last) send(state.last.d, state.last.files); };
+$("homeBtn").onclick = resetForm;
+function resetForm(){
+  state.files.forEach(x=>URL.revokeObjectURL(x.url));
+  Object.assign(state,{equip:null,issueIdx:null,files:[],last:null});
+  $("device").value=""; $("othersText").value="";
+  $("problemPanel").style.display = "none";
+  document.querySelectorAll(".invalid").forEach(e=>e.classList.remove("invalid"));
+  document.querySelectorAll(".errmsg").forEach(e=>e.classList.remove("show"));
+  renderEquip(); applyDefaults(); renderThumbs(); showScreen("form");
+}
+
+/* ======================================================================
+   SUPER USER — tap the title 5 times (or open the page with #admin)
+   ====================================================================== */
+let taps = 0, tapTimer;
+$("appTitle").addEventListener("click", ()=>{
+  if(editMode) return;
+  taps++; clearTimeout(tapTimer); tapTimer = setTimeout(()=>taps=0, 2500);
+  if(taps>=5){ taps=0; askPin(); }
+});
+function askPin(){
+  if(sessionStorage.getItem("eqAdminOk")==="1"){ enterEdit(); return; }
+  $("pinInput").value=""; $("pinErr").classList.remove("show");
+  $("pinModal").style.display="flex"; setTimeout(()=>$("pinInput").focus(),50);
+}
+$("pinCancel").onclick = ()=>$("pinModal").style.display="none";
+$("pinOk").onclick = checkPin;
+$("pinInput").addEventListener("keydown", e=>{ if(e.key==="Enter") checkPin(); });
+function checkPin(){
+  if(sha256($("pinInput").value.trim()) === cfg.settings.pinHash){
+    try{ sessionStorage.setItem("eqAdminOk","1"); }catch(e){}
+    $("pinModal").style.display="none"; enterEdit();
+  } else $("pinErr").classList.add("show");
+}
+
+async function enterEdit(){
+  await loadConfig();                                   // start from the latest published version
+  let work = null; try{ work = JSON.parse(LS.get("eqAdminWork")||"null"); }catch(e){}
+  if(work && JSON.stringify(normalize(clone(work))) !== JSON.stringify(cfg)
+     && confirm("You have unsaved edits from last time. Continue with them?\n有上次未发布的修改，是否继续？")){
+    draft = normalize(work);
+  } else { draft = normalize(clone(cfg)); LS.del("eqAdminWork"); }
+  draft._base = cfg.version;
+  editMode = true; document.body.classList.add("editing");
+  showScreen("form"); renderAll();
+}
+function exitEdit(){
+  editMode = false; draft = null; document.body.classList.remove("editing");
+  closeSheet(true); state.equip=null; state.issueIdx=null; renderAll(); applyDefaults();
+}
+$("ebExit").onclick = ()=>{
+  const dirty = draft && JSON.stringify(stripMeta(draft)) !== JSON.stringify(cfg);
+  if(dirty && !confirm("Leave edit mode? Your unpublished changes stay on this phone for next time.\n退出编辑？未发布的修改会保存在本机。")) return;
+  exitEdit();
+};
+$("ebSettings").onclick = ()=>openSheet(sheetSettings);
+$("titlePen").onclick = ()=>openSheet(sheetSettings);
+$("ebSave").onclick = publish;
+function stripMeta(c){ const o = clone(c); delete o._base; return o; }
+
+/* any edit → autosave + refresh the live form behind the sheet */
+let refreshT;
+function changed(){
+  LS.set("eqAdminWork", JSON.stringify(stripMeta(draft)));
+  clearTimeout(refreshT); refreshT = setTimeout(renderAll, 120);
+}
+
+/* ======================================================================
+   BOTTOM SHEET EDITOR
+   ====================================================================== */
+let sheetFn = null, sheetOnClose = null;
+function openSheet(fn, onClose){ sheetFn = fn; sheetOnClose = onClose||null; refreshSheet(); $("sheet").classList.add("open"); $("sheetBody").scrollTop = 0; }
+function refreshSheet(){ if(!sheetFn) return; const r = sheetFn(); if(!r){ closeSheet(); return; } $("sheetTitle").textContent = r.title; $("sheetBody").innerHTML = r.html; }
+function closeSheet(silent){
+  $("sheet").classList.remove("open");
+  const cb = sheetOnClose; sheetFn = null; sheetOnClose = null;
+  if(cb && !silent) cb();
+  if(!silent && editMode) renderAll();
+}
+$("sheetDone").onclick = ()=>closeSheet();
+$("sheet").addEventListener("click", e=>{ if(e.target.id==="sheet") closeSheet(); });
+
+function fEN(path, val, label){ return `<label class="lbl">${label}</label><input type="text" data-path="${path}" value="${esc(val)}">`; }
+function fCN(path, val, srcPath, label){
+  return `<label class="lbl">${label}</label><div class="cnwrap"><input type="text" data-path="${path}" value="${esc(val)}" placeholder="中文"><button class="auto" data-act="cn" data-path="${path}" data-src="${srcPath}" title="Auto-translate from English">中</button></div>`;
+}
+function moveRow(path, i, len, leftRight){
+  const a = leftRight ? ["← Move left","Move right →"] : ["↑ Move up","↓ Move down"];
+  return `<div class="mrow"><button class="sbtn" data-act="up" data-path="${path}" ${i===0?"disabled":""}>${a[0]}</button><button class="sbtn" data-act="down" data-path="${path}" ${i===len-1?"disabled":""}>${a[1]}</button></div>`;
+}
+
+function sheetEquip(i){
+  const e = draft.equipment[i]; if(!e) return null; const P = `equipment.${i}`;
+  return { title: e.en ? `Equipment: ${e.en}` : "New equipment 新设备", html: `
+    <div class="pair"><div>${fEN(P+".en",e.en,"Name (English)")}</div><div>${fCN(P+".cn",e.cn,P+".en","名称 (中文)")}</div></div>
+    <label class="lbl">Picture 图片</label>
+    <div class="iconrow">
+      <div class="prev">${iconHTML(e)}</div>
+      <input type="text" data-path="${P}.icon" data-re="1" value="${esc(e.icon)}" placeholder="🙂" title="Emoji (used when no picture)">
+      <button class="sbtn" data-act="icon" data-path="${P}">📷 Upload</button>
+      ${e.img?`<button class="sbtn dng" data-act="noimg" data-path="${P}">Remove</button>`:""}
+    </div>
+    <div class="hint">Upload a photo/logo, or type an emoji. 上传图片或输入表情符号。</div>
+
+    <label class="chk"><input type="checkbox" data-path="${P}.askWhich" data-re="1" ${e.askWhich?"checked":""}> Ask “which one?” (e.g. printer ID) 询问具体哪台</label>
+    ${e.askWhich?`<div class="pair"><div>${fEN(P+".whichEn",e.whichEn,"Question (English)")}</div><div>${fCN(P+".whichCn",e.whichCn,P+".whichEn","问题 (中文)")}</div></div>
+    <label class="lbl">Hint shown in the box 提示文字</label><input type="text" data-path="${P}.whichPh" value="${esc(e.whichPh)}">`:""}
+    <label class="chk"><input type="checkbox" data-path="${P}.allowOthers" ${e.allowOthers?"checked":""}> Show “Others 其他” option with a text box</label>
+    <div class="hint">Problem options are edited on the form: ✏️ next to each option, ＋ to add. 问题选项请在表单上编辑。</div>
+    ${moveRow(P,i,draft.equipment.length,true)}
+    <div class="sec2"><button class="btn2 dng" data-act="del" data-path="${P}">🗑 Delete this equipment 删除设备</button></div>` };
+}
+function sheetProblem(i,k){
+  const e = draft.equipment[i]; const p = e && e.problems[k]; if(!p) return null; const P = `equipment.${i}.problems.${k}`;
+  return { title: `${e.en || "Equipment"} — problem option`, html: `
+    ${fEN(P+".en",p.en,"Problem (English)")}
+    ${fCN(P+".cn",p.cn,P+".en","问题 (中文)")}
+    ${moveRow(P,k,e.problems.length)}
+    <div class="sec2"><button class="btn2 dng" data-act="del" data-path="${P}">🗑 Delete this option 删除选项</button></div>` };
+}
+function sheetQuestion(i){
+  const q = draft.questions[i]; if(!q) return null; const P = `questions.${i}`;
+  const types = [["text","Short text 短文本"],["longtext","Long text 长文本"],["number","Number 数字"],["date","Date 日期"],["time","Time 时间"],["select","Dropdown 下拉选择"]];
+  const defs = [["none","Empty 空白"],["today","Today 今天"],["now","Current time 当前时间"],["remember","Remember last entry 记住上次输入"]];
+  return { title: q.en ? `Question: ${q.en}` : "New question 新问题", html: `
+    <div class="pair"><div>${fEN(P+".en",q.en,"Question (English)")}</div><div>${fCN(P+".cn",q.cn,P+".en","问题 (中文)")}</div></div>
+    <div class="pair">
+      <div><label class="lbl">Answer type 类型</label><select data-path="${P}.type" data-re="1">${types.map(t=>`<option value="${t[0]}" ${q.type===t[0]?"selected":""}>${t[1]}</option>`).join("")}</select></div>
+      <div><label class="lbl">Pre-fill 默认值</label><select data-path="${P}.def">${defs.map(t=>`<option value="${t[0]}" ${q.def===t[0]?"selected":""}>${t[1]}</option>`).join("")}</select></div>
+    </div>
+    ${q.type==="select"?`<label class="lbl">Dropdown choices — one per line: English | 中文</label><textarea data-path="${P}.options" rows="5" placeholder="Zone A | A区&#10;Zone B | B区">${esc(q.options)}</textarea>`:""}
+    ${["text","number","longtext"].includes(q.type)?`<label class="lbl">Hint shown in the box 提示文字</label><input type="text" data-path="${P}.ph" value="${esc(q.ph)}">`:""}
+    <label class="chk"><input type="checkbox" data-path="${P}.required" ${q.required?"checked":""}> Required 必填</label>
+    <label class="chk"><input type="checkbox" data-path="${P}.half" ${q.half?"checked":""}> Half width (two side by side) 半宽</label>
+    ${q.type==="text"?`<label class="chk"><input type="checkbox" data-path="${P}.upper" ${q.upper?"checked":""}> Convert to CAPITALS 自动大写</label>`:""}
+    ${q.id?`<div class="hint">Data key in email: <span class="key">${esc(q.id)}</span></div>`:""}
+    ${moveRow(P,i,draft.questions.length)}
+    <div class="sec2"><button class="btn2 dng" data-act="del" data-path="${P}">🗑 Delete this question 删除问题</button></div>` };
+}
+function sheetSettings(){
+  const S = draft.settings, g = ghCfg();
+  return { title: "Settings 设置", html: `
+    <div class="pair"><div>${fEN("settings.titleEn",S.titleEn,"App title (English)")}</div><div>${fCN("settings.titleCn",S.titleCn,"settings.titleEn","标题 (中文)")}</div></div>
+    <label class="lbl">Send to (email) 收件邮箱</label><input type="text" data-path="settings.emailTo" value="${esc(S.emailTo)}" inputmode="email">
+    <label class="lbl">Email subject starts with 邮件主题前缀</label><input type="text" data-path="settings.subjectPrefix" value="${esc(S.subjectPrefix)}">
+    <label class="lbl">Warn when attachments exceed (MB)</label><input type="text" inputmode="numeric" data-path="settings.maxMB" data-num="1" value="${esc(S.maxMB)}">
+
+    <div class="sec2"><h4>Change Super User PIN 更改密码</h4>
+      <div class="pair"><input type="password" id="newPin" placeholder="New PIN" inputmode="numeric"><input type="password" id="newPin2" placeholder="Repeat" inputmode="numeric"></div>
+      <button class="sbtn pri" data-act="pin" style="margin-top:8px">Set new PIN</button>
+      <div class="hint">Applies to everyone after Save &amp; Publish.</div>
+    </div>
+
+    <div class="sec2" id="ghSec"><h4>Publishing connection (this phone only) 发布连接</h4>
+      <div class="hint" style="margin-top:0">Lets <b>Save &amp; Publish</b> update the app directly. Set up once per super user phone. The key is stored only on this phone, never in the app.</div>
+      <div class="pair"><div><label class="lbl">GitHub owner</label><input type="text" id="ghOwner" value="${esc(g.owner)}" autocapitalize="off"></div>
+        <div><label class="lbl">Repository</label><input type="text" id="ghRepo" value="${esc(g.repo)}" autocapitalize="off"></div></div>
+      <div class="pair"><div><label class="lbl">Branch</label><input type="text" id="ghBranch" value="${esc(g.branch)}" autocapitalize="off"></div>
+        <div><label class="lbl">File path</label><input type="text" id="ghPath" value="${esc(g.path)}" autocapitalize="off"></div></div>
+      <label class="lbl">Access key (GitHub token)</label><input type="password" id="ghToken" value="${esc(g.token)}" autocomplete="off" placeholder="github_pat_…">
+      <div class="mrow"><button class="sbtn pri" data-act="ghSave">Save &amp; test connection</button><button class="sbtn dng" data-act="ghForget">Remove key</button></div>
+      <div class="gstat" id="ghStat"></div>
+    </div>
+
+    <div class="sec2"><h4>Backup 备份</h4>
+      <div class="mrow"><button class="sbtn" data-act="download">⬇️ Download config.json</button><button class="sbtn" data-act="import">📂 Open config.json</button></div>
+      <button class="btn2 dng" data-act="discard">↩️ Discard all unpublished edits 放弃修改</button>
+    </div>` };
+}
+
+/* ---- path helpers ---- */
+function getPath(o,path){ return path.split(".").reduce((a,k)=>a==null?a:a[k], o); }
+function setPath(o,path,v){ const ks=path.split("."); const last=ks.pop(); const t=ks.reduce((a,k)=>a[k],o); t[last]=v; }
+
+/* ---- sheet events ---- */
+$("sheetBody").addEventListener("input", e=>{
+  const el=e.target, path=el.dataset.path; if(!path || el.type==="checkbox" || el.tagName==="SELECT") return;
+  let v = el.value; if(el.dataset.num) v = Number(v)||0;
+  setPath(draft,path,v); changed();
+});
+$("sheetBody").addEventListener("change", e=>{
+  const el=e.target, path=el.dataset.path; if(!path) return;
+  setPath(draft, path, el.type==="checkbox" ? el.checked : el.value); changed();
+  if(el.dataset.re) refreshSheet();
+});
+$("sheetBody").addEventListener("click", async e=>{
+  const b = e.target.closest("[data-act]"); if(!b || b.disabled) return;
+  const act=b.dataset.act, path=b.dataset.path;
+  if(act==="up"||act==="down"){
+    const ks=path.split("."), idx=+ks.pop(), arr=getPath(draft,ks.join(".")), j=act==="up"?idx-1:idx+1;
+    [arr[idx],arr[j]]=[arr[j],arr[idx]];
+    // keep the sheet and the selection pointing at the moved item
+    if(ks[0]==="equipment" && ks.length===1){ if(state.equip===idx) state.equip=j; else if(state.equip===j) state.equip=idx; sheetFn = ()=>sheetEquip(j); }
+    else if(ks.length===3){ const ei=+ks[1]; if(state.issueIdx===idx) state.issueIdx=j; sheetFn = ()=>sheetProblem(ei,j); }
+    else sheetFn = ()=>sheetQuestion(j);
+    sheetOnClose = null; changed(); refreshSheet(); return;
+  }
+  if(act==="del"){
+    const ks=path.split("."), idx=+ks.pop(), arr=getPath(draft,ks.join("."));
+    if(!confirm(`Delete "${arr[idx].en||"this item"}"? 确定删除？`)) return;
+    arr.splice(idx,1);
+    if(ks[0]==="equipment" && ks.length===1){ state.equip=null; state.issueIdx=null; }
+    if(ks.length===3) state.issueIdx=null;
+    sheetOnClose=null; changed(); closeSheet(); return;
+  }
+  if(act==="cn"){
+    const src=(getPath(draft,b.dataset.src)||"").trim(); if(!src){ toast("Type the English first 请先输入英文"); return; }
+    b.textContent="…";
+    try{
+      const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(src)}&langpair=en|zh-CN`);
+      const j = await r.json(); const t = (j.responseData && j.responseData.translatedText) || "";
+      if(!t) throw 0; setPath(draft,path,t); changed(); refreshSheet(); toast("Check the Chinese and edit if needed 请检查翻译");
+    }catch(err){ b.textContent="中"; toast("Auto-translate unavailable — please type the Chinese 无法自动翻译，请手动输入"); }
+    return;
+  }
+  if(act==="icon"){ iconTarget=path; $("iconInput").click(); return; }
+  if(act==="noimg"){ getPath(draft,path).img=""; changed(); refreshSheet(); return; }
+  if(act==="pin"){
+    const a=$("newPin").value.trim(), c=$("newPin2").value.trim();
+    if(a.length<4){ toast("PIN must be at least 4 characters"); return; }
+    if(a!==c){ toast("PINs don't match 两次输入不一致"); return; }
+    draft.settings.pinHash = sha256(a); changed(); $("newPin").value=$("newPin2").value=""; toast("New PIN set — Save & Publish to apply"); return;
+  }
+  if(act==="ghSave"){
+    const g = { owner:$("ghOwner").value.trim(), repo:$("ghRepo").value.trim(), branch:$("ghBranch").value.trim()||"main", path:$("ghPath").value.trim()||"config.json", token:$("ghToken").value.trim() };
+    LS.set("eqGitHub", JSON.stringify(g));
+    const st=$("ghStat"); st.className="gstat"; st.textContent="Testing…";
+    try{ await ghTest(g); st.className="gstat ok"; st.textContent="✓ Connected — Save & Publish will update the app directly."; }
+    catch(err){ st.className="gstat bad"; st.textContent="✗ "+err.message; }
+    return;
+  }
+  if(act==="ghForget"){ const g=ghCfg(); g.token=""; LS.set("eqGitHub",JSON.stringify(g)); refreshSheet(); toast("Key removed from this phone"); return; }
+  if(act==="download"){ downloadConfig(nextVersionCfg()); return; }
+  if(act==="import"){ $("importInput").click(); return; }
+  if(act==="discard"){
+    if(!confirm("Discard all unpublished edits? 放弃所有未发布的修改？")) return;
+    LS.del("eqAdminWork"); draft = normalize(clone(cfg)); draft._base = cfg.version; state.equip=null; state.issueIdx=null;
+    sheetOnClose=null; closeSheet(); toast("Edits discarded 已放弃"); return;
+  }
+});
+
+/* picture upload: shrunk to 128px so config.json stays small */
+let iconTarget = null;
+$("iconInput").onchange = e=>{
+  const f = e.target.files[0]; e.target.value=""; if(!f || !iconTarget) return;
+  const img = new Image(), url = URL.createObjectURL(f);
+  img.onload = ()=>{
+    const S=128, cv=document.createElement("canvas"); cv.width=cv.height=S; const cx=cv.getContext("2d");
+    const r=Math.min(S/img.width,S/img.height), w=img.width*r, h=img.height*r;
+    cx.drawImage(img,(S-w)/2,(S-h)/2,w,h);
+    let data = cv.toDataURL("image/png"); if(data.length>40000) data = cv.toDataURL("image/jpeg",0.85);
+    getPath(draft,iconTarget).img = data; URL.revokeObjectURL(url); changed(); refreshSheet();
+  };
+  img.onerror = ()=>toast("Can't read this picture — try a JPG or PNG");
+  img.src = url;
+};
+$("importInput").onchange = e=>{
+  const f = e.target.files[0]; e.target.value=""; if(!f) return;
+  f.text().then(t=>{ const base=draft._base; draft = normalize(JSON.parse(t)); draft._base=base; state.equip=null; changed(); closeSheet(true); renderAll(); toast("Loaded 已载入 — Save & Publish to apply"); })
+         .catch(()=>toast("Not a valid config.json"));
+};
+
+/* ======================================================================
+   SAVE & PUBLISH — commits config.json straight to the GitHub repo
+   ====================================================================== */
+function ghCfg(){
+  let g = {}; try{ g = JSON.parse(LS.get("eqGitHub")||"{}"); }catch(e){}
+  // guess owner/repo from the page address, e.g. https://owner.github.io/repo/
+  const h = location.hostname, seg = location.pathname.split("/").filter(Boolean);
+  const gOwner = /\.github\.io$/i.test(h) ? h.split(".")[0] : "";
+  const gRepo  = gOwner ? (seg.length && !/\.html?$/i.test(seg[0]) ? seg[0] : h) : "";
+  return { owner:g.owner||gOwner, repo:g.repo||gRepo, branch:g.branch||"main", path:g.path||"config.json", token:g.token||"" };
+}
+function ghHeaders(g){ return { "Authorization":"Bearer "+g.token, "Accept":"application/vnd.github+json" }; }
+function ghErr(status, what){
+  if(status===401) return new Error("Access key is wrong or expired. 密钥错误或已过期");
+  if(status===403) return new Error("Access key has no permission to write to this repository.");
+  if(status===404) return new Error(`Not found — check owner / repository / ${what||"path"}.`);
+  if(status===409 || status===422) return new Error("Someone else published at the same moment — press Save & Publish again.");
+  return new Error("GitHub error "+status);
+}
+async function ghTest(g){
+  if(!g.owner||!g.repo||!g.token) throw new Error("Fill in owner, repository and access key.");
+  const r = await fetch(`https://api.github.com/repos/${g.owner}/${g.repo}`, {headers:ghHeaders(g), cache:"no-store"});
+  if(!r.ok) throw ghErr(r.status,"repository");
+  const j = await r.json();
+  if(j.permissions && !j.permissions.push) throw new Error("This key can read but not write. Give it Contents: Read and write.");
+}
+function nextVersionCfg(){ const o = stripMeta(draft); o.version = Math.max(Number(cfg.version)||1, Number(draft._base)||1) + 1; o.updated = new Date().toISOString(); return o; }
+function downloadConfig(o){
+  const blob = new Blob([JSON.stringify(o,null,2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "config.json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast("Downloaded config.json 已下载");
+}
+function checkDraft(){
+  if(!draft.equipment.length) return "Add at least one equipment 至少需要一个设备";
+  for(const e of draft.equipment){
+    if(!e.en.trim()) return "An equipment has no English name 有设备缺少英文名称";
+    if(!e.problems.length && !e.allowOthers) return `"${e.en}" has no problem options`;
+    if(e.problems.some(p=>!p.en.trim())) return `"${e.en}" has an empty problem option`;
+  }
+  if(draft.questions.some(q=>!q.en.trim())) return "A question has no English text 有问题缺少英文";
+  if(draft.questions.some(q=>q.type==="select" && !parseOpts(q.options).length)) return "A dropdown question has no choices";
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(draft.settings.emailTo).trim())) return "Send-to email looks wrong 收件邮箱格式错误";
+  return "";
+}
+async function publish(){
+  const err = checkDraft(); if(err){ toast(err,4000); return; }
+  const g = ghCfg();
+  if(!g.token){
+    openSheet(sheetSettings);
+    setTimeout(()=>{ const s=$("ghSec"); if(s) s.scrollIntoView({behavior:"smooth"}); const st=$("ghStat"); if(st){ st.className="gstat bad"; st.textContent="Set up the publishing connection first (one time per phone)."; } },100);
+    return;
+  }
+  const btn = $("ebSave"); btn.disabled = true; btn.textContent = "Publishing… 发布中";
+  try{
+    const api = `https://api.github.com/repos/${g.owner}/${g.repo}/contents/${g.path.split("/").map(encodeURIComponent).join("/")}`;
+    // read the current file (needed by GitHub, and to warn if someone else published meanwhile)
+    let sha, remoteVer = 0;
+    const r = await fetch(`${api}?ref=${encodeURIComponent(g.branch)}&t=${Date.now()}`, {headers:ghHeaders(g), cache:"no-store"});
+    if(r.ok){
+      const j = await r.json(); sha = j.sha;
+      try{ remoteVer = Number(JSON.parse(b64decUtf8(j.content||"")).version)||0; }catch(e){}
+    } else if(r.status!==404) throw ghErr(r.status);
+    if(remoteVer > (Number(draft._base)||0) &&
+       !confirm(`Someone published a newer version (v${remoteVer}) after you started editing. Overwrite it with your version?\n有人已发布更新版本，是否覆盖？`)){
+      throw new Error("Cancelled — nothing was published.");
+    }
+    const out = nextVersionCfg(); out.version = Math.max(out.version, remoteVer + 1);
+    const body = { message:`Update equipment config v${out.version}`, content:b64encUtf8(JSON.stringify(out,null,2)), branch:g.branch };
+    if(sha) body.sha = sha;
+    const p = await fetch(api, {method:"PUT", headers:Object.assign({"Content-Type":"application/json"},ghHeaders(g)), body:JSON.stringify(body)});
+    if(!p.ok) throw ghErr(p.status);
+    // success
+    cfg = normalize(clone(out)); LS.set("eqPublishedCache", JSON.stringify(out)); LS.del("eqAdminWork");
+    exitEdit();
+    toast("✓ Published v"+out.version+" — all phones update within about a minute. 已发布", 4500);
+  }catch(e){
+    toast(e.message || "Publish failed", 5000);
+  }finally{
+    btn.disabled = false; btn.innerHTML = "💾 Save &amp; Publish 发布";
+  }
+}
+
+/* ======================================================================
+   START
+   ====================================================================== */
+loadConfig().then(()=>{
+  renderAll();
+  if(location.hash==="#admin") askPin();
+});
+</script>
+</body>
+</html>
