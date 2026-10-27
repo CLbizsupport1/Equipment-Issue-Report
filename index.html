@@ -802,6 +802,10 @@ function sheetSettings(){
       <label class="lbl">Access key (GitHub token)</label><input type="password" id="ghToken" value="${esc(g.token)}" autocomplete="off" placeholder="github_pat_…">
       <div class="mrow"><button class="sbtn pri" data-act="ghSave">Save &amp; test connection</button><button class="sbtn dng" data-act="ghForget">Remove key</button></div>
       <div class="gstat" id="ghStat"></div>
+      <div class="sec2"><h4>Set up other super users 设置其他管理员</h4>
+        <div class="hint" style="margin-top:0">Creates a private link. Send it by Teams/WhatsApp to another super user — when they open it, their phone is connected automatically and they never see the key. Do not post it in a group or public place.</div>
+        <button class="btn2 sec" data-act="ghLink">🔗 Copy setup link 复制设置链接</button>
+      </div>
     </div>
 
     <div class="sec2"><h4>Backup 备份</h4>
@@ -869,6 +873,13 @@ $("sheetBody").addEventListener("click", async e=>{
     const st=$("ghStat"); st.className="gstat"; st.textContent="Testing…";
     try{ await ghTest(g); st.className="gstat ok"; st.textContent="✓ Connected — Save & Publish will update the app directly."; }
     catch(err){ st.className="gstat bad"; st.textContent="✗ "+err.message; }
+    return;
+  }
+  if(act==="ghLink"){
+    const g=ghCfg(); if(!g.token){ toast("Save the access key first 请先保存密钥"); return; }
+    const link = location.origin + location.pathname + "#setup=" + encodeURIComponent(btoa(JSON.stringify(g)).split("").reverse().join(""));
+    try{ await navigator.clipboard.writeText(link); toast("Setup link copied — paste it in a private chat 已复制", 3500); }
+    catch(e){ prompt("Copy this setup link:", link); }
     return;
   }
   if(act==="ghForget"){ const g=ghCfg(); g.token=""; LS.set("eqGitHub",JSON.stringify(g)); refreshSheet(); toast("Key removed from this phone"); return; }
@@ -988,6 +999,18 @@ async function publish(){
 /* ======================================================================
    START
    ====================================================================== */
+/* setup link: #setup=... saves the publishing key on this phone, then removes it from the address bar */
+(function(){
+  const m = location.hash.match(/^#setup=(.+)$/); if(!m) return;
+  try{
+    const g = JSON.parse(atob(decodeURIComponent(m[1]).split("").reverse().join("")));
+    if(!g.token) throw 0;
+    LS.set("eqGitHub", JSON.stringify(g));
+    setTimeout(()=>toast("✓ This phone can now publish. Tap the title 5 times to edit. 本机已可发布", 5000), 300);
+  }catch(e){ setTimeout(()=>toast("Setup link is not valid 设置链接无效"), 300); }
+  history.replaceState(null, "", location.pathname + location.search);
+})();
+
 loadConfig().then(()=>{
   renderAll();
   if(location.hash==="#admin") askPin();
