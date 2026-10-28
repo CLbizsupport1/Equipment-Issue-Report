@@ -77,6 +77,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy)}
 .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
 .thumb .x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:24px;padding:0;cursor:pointer}
 .thumb .vtag{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 6px;border-radius:6px}
+.photonote{display:flex;gap:10px;align-items:flex-start;background:#f6f8fd;border:1.5px dashed var(--navy);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;color:var(--ink)}
+.photonote .cn2{color:var(--muted);font-size:13px}
 .hint{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.45}
 .warn{color:var(--amber)}
 
@@ -217,13 +219,15 @@ body.editing #editBar{display:block}
 
     <div class="card">
       <h2><span class="n">3</span>Photo / Video 照片 / 视频 <span style="font-weight:400;color:var(--muted);font-size:13px">(optional 可选)</span></h2>
-      <button type="button" class="attach-btn" id="attachBtn">📎 Add photo or video 添加照片或视频</button>
+      <div class="photonote">📎 <div><b>Need to show a photo or video?</b> After you tap Submit, the email opens — tap the <b>📎 attach</b> button in the email, add your photo or video, then press <b>Send</b>.<br>
+        <span class="cn2"><b>需要附上照片或视频？</b>点「提交」后会打开邮件，请在邮件中点 <b>📎 附件</b> 添加照片或视频，然后按<b>发送</b>。</span></div></div>
       <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
-      <div class="thumbs" id="thumbs"></div>
-      <div class="hint" id="sizeHint"></div>
+      <button type="button" id="attachBtn" hidden></button>
+      <div class="thumbs" id="thumbs" hidden></div>
+      <div class="hint" id="sizeHint" hidden></div>
     </div>
 
-    <button class="submit" id="submitBtn">Submit 提交<small>Opens the email draft — press Send in your email app 打开邮件草稿后请按发送</small></button>
+    <button class="submit" id="submitBtn">Submit 提交<small>Opens the email — add photo/video if needed, then press Send 打开邮件，如需可添加照片/视频，然后按发送</small></button>
   </div>
 
   <!-- ================= DONE ================= -->
@@ -232,7 +236,7 @@ body.editing #editBar{display:block}
     <h2>Email draft opened 邮件草稿已打开</h2>
     <p id="doneMsg"></p>
     <button class="btn2 pri" id="sendAgainBtn">Send again 再次发送</button>
-    <button class="btn2 sec" id="homeBtn">New report 新报告</button>
+    <button class="btn2 sec" id="homeBtn">🏠 Home 主页</button>
     <button class="linkbtn" id="changeAppBtn" style="display:none">Change email app 更换邮件应用</button>
   </div>
 </main>
@@ -606,7 +610,6 @@ function buildBody(d, leadSubject){
   L.push(`Problem 问题: ${d.issue} ${d.issueCn}`);
   if(d.isOthers) L.push(`Details 描述: ${d.othersText}`);
   d._answerList.forEach(a=>L.push(`${a.en}${a.cn?" "+a.cn:""}: ${a.value}`));
-  L.push(`Attachments 附件: ${d.attachments}`);
   L.push("");
   const data = Object.assign({}, d); delete data._answerList; delete data._date; delete data._time;
   data.date = d._date; data.time = d._time;
@@ -654,10 +657,10 @@ function showDone(viaShare, attachManually){
   let msg;
   if(viaShare) msg = `Choose your email app, paste <b>${to}</b> into the <b>To</b> field (already copied), then press <b>Send</b>.<br>选择邮件应用，在<b>收件人</b>栏粘贴地址（已复制），然后按<b>发送</b>。`;
   else if(attachManually) msg = `Your device can't attach files automatically. Please attach the photo/video in the email draft, then press <b>Send</b>.<br>您的设备无法自动附加文件，请在邮件草稿中手动添加照片/视频，然后按<b>发送</b>。`;
-  else if(mailPref()==="outlook") msg = `Outlook should open with everything filled in — press <b>Send</b>. If Outlook didn't open, tap <b>Change email app</b> below.<br>Outlook 会打开并自动填好 — 请按<b>发送</b>。如未打开，请点下方「更换邮件应用」。`;
+  else if(mailPref()==="outlook") msg = `Outlook should open with everything filled in. Add a photo/video with 📎 if needed, then press <b>Send</b>. If Outlook didn't open, tap <b>Change email app</b> below.<br>Outlook 会打开并自动填好。如需可点 📎 添加照片/视频，然后按<b>发送</b>。如未打开，请点下方「更换邮件应用」。`;
   else msg = IS_ANDROID
-    ? `If asked, pick your email app (e.g. Outlook), then press <b>Send</b>.<br>如有提示，请选择邮件应用（如 Outlook），然后按<b>发送</b>。`
-    : `Check the draft and press <b>Send</b>. Submitting here does not send the email.<br>请检查草稿并按<b>发送</b>。在此提交不会自动发送邮件。`;
+    ? `If asked, pick your email app (e.g. Outlook). Add a photo/video with 📎 if needed, then press <b>Send</b>.<br>如有提示，请选择邮件应用（如 Outlook）。如需可点 📎 添加照片/视频，然后按<b>发送</b>。`
+    : `Check the email, add a photo/video with 📎 if needed, then press <b>Send</b>. Submitting here does not send the email.<br>请检查邮件，如需可点 📎 添加照片/视频，然后按<b>发送</b>。在此提交不会自动发送邮件。`;
   $("doneMsg").innerHTML = msg;
   $("changeAppBtn").style.display = IS_MOBILE ? "" : "none";
   showScreen("done");
