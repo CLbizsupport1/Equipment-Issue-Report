@@ -254,9 +254,9 @@ body.editing #editBar{display:block}
 <div id="appModal">
   <div class="box">
     <h3>Which email app? 用哪个邮件应用？</h3>
-    <div class="hint" style="margin-top:0">Your phone will remember this. 手机会记住您的选择。</div>
+    <div class="hint" style="margin-top:0">Choose how to send this report. 请选择发送方式。</div>
     <button class="btn2 pri" id="appOutlook">📧 Outlook</button>
-    <button class="btn2 sec" id="appOther">Other email app 其他邮件应用<br><small style="font-weight:500">(Mail, Gmail…)</small></button>
+    <button class="btn2 sec" id="appOther">Normal mail app 普通邮件应用<br><small style="font-weight:500">(Mail, Gmail…)</small></button>
     <button class="linkbtn" id="appCancel">Cancel 取消</button>
   </div>
 </div>
@@ -527,7 +527,7 @@ function renderQuestions(){
     });
   };
 }
-function defaultFor(q){ return q.def==="today" ? todayISO() : q.def==="now" ? nowHM() : q.def==="remember" ? (LS.get("eqRemember_"+q.id)||"") : ""; }
+function defaultFor(q){ return q.def==="today" ? todayISO() : q.def==="now" ? nowHM() : ""; }   // nothing is remembered between reports (shared phones)
 function applyDefaults(){ cur().questions.forEach(q=>{ const el=$("q_"+q.id); if(el) el.value = defaultFor(q); }); }
 
 /* ---------- Attachments ---------- */
@@ -613,10 +613,11 @@ function buildBody(d, leadSubject){
   L.push(DATA_MARKER); L.push(JSON.stringify(data)); L.push(DATA_END);
   return L.join("\n");
 }
-/* Email app choice (phones only): "outlook" or "other", remembered on this device */
+/* Email app choice: asked on every Submit — "outlook" or "other" (normal mail app) */
 const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
 const IS_MOBILE = IS_IOS || IS_ANDROID;
-function mailPref(){ return IS_MOBILE ? (LS.get("eqMailApp")||"") : "other"; }
+let mailChoice = "";
+function mailPref(){ return mailChoice; }
 function openMailto(d){
   const to = cur().settings.emailTo, sub = encodeURIComponent(buildSubject(d)), body = encodeURIComponent(buildBody(d,false));
   if(mailPref()==="outlook" && IS_IOS){
@@ -625,11 +626,14 @@ function openMailto(d){
   if(mailPref()==="outlook" && IS_ANDROID){
     window.location.href = `intent:${to}?subject=${sub}&body=${body}#Intent;scheme=mailto;package=com.microsoft.office.outlook;end`; return;
   }
+  if(mailPref()==="outlook" && !IS_MOBILE){   // PC: Outlook on the web, new tab, everything pre-filled
+    window.open(`https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${sub}&body=${body}`, "_blank"); return;
+  }
   window.location.href = `mailto:${to}?subject=${sub}&body=${body}`;
 }
 function askMailApp(then){
   $("appModal").style.display = "flex";
-  const pick = v => { LS.set("eqMailApp", v); $("appModal").style.display = "none"; then(); };
+  const pick = v => { mailChoice = v; $("appModal").style.display = "none"; then(); };
   $("appOutlook").onclick = ()=>pick("outlook");
   $("appOther").onclick = ()=>pick("other");
   $("appCancel").onclick = ()=>{ $("appModal").style.display = "none"; };
@@ -659,7 +663,7 @@ function showDone(viaShare, attachManually){
     ? `If asked, pick your email app (e.g. Outlook). Add a photo/video with 📎 if needed, then press <b>Send</b>.<br>如有提示，请选择邮件应用（如 Outlook）。如需可点 📎 添加照片/视频，然后按<b>发送</b>。`
     : `Check the email, add a photo/video with 📎 if needed, then press <b>Send</b>. Submitting here does not send the email.<br>请检查邮件，如需可点 📎 添加照片/视频，然后按<b>发送</b>。在此提交不会自动发送邮件。`;
   $("doneMsg").innerHTML = msg;
-  $("changeAppBtn").style.display = IS_MOBILE ? "" : "none";
+  $("changeAppBtn").style.display = "";
   showScreen("done");
 }
 function showScreen(s){
@@ -672,22 +676,22 @@ $("submitBtn").onclick = ()=>{
   const d = collect(); if(!d) return;
   const files = state.files.map(x=>x.file);
   state.last = { d, files };
-  // ask once which email app to use (not needed when photos go through the share sheet)
-  if(!files.length && IS_MOBILE && !mailPref()){ askMailApp(()=>send(d, files)); return; }
-  send(d, files);
+  askMailApp(()=>{ send(d, files); clearForm(); });   // pop-up every time; form is cleared once the email opens
 };
-$("changeAppBtn").onclick = ()=>{ LS.del("eqMailApp"); if(state.last) askMailApp(()=>send(state.last.d, state.last.files)); };
+$("changeAppBtn").onclick = ()=>{ if(state.last) askMailApp(()=>send(state.last.d, state.last.files)); };
 $("sendAgainBtn").onclick = ()=>{ if(state.last) send(state.last.d, state.last.files); };
 $("homeBtn").onclick = resetForm;
-function resetForm(){
+/* Clear everything (Staff ID included); Date and Time go back to today / now */
+function clearForm(){
   state.files.forEach(x=>URL.revokeObjectURL(x.url));
-  Object.assign(state,{equip:null,issueIdx:null,files:[],last:null});
+  Object.assign(state,{equip:null,issueIdx:null,files:[]});
   $("device").value=""; $("othersText").value="";
   $("problemPanel").style.display = "none";
   document.querySelectorAll(".invalid").forEach(e=>e.classList.remove("invalid"));
   document.querySelectorAll(".errmsg").forEach(e=>e.classList.remove("show"));
-  renderEquip(); applyDefaults(); renderThumbs(); showScreen("form");
+  renderEquip(); applyDefaults(); renderThumbs();
 }
+function resetForm(){ clearForm(); state.last = null; showScreen("form"); }
 
 /* ======================================================================
    SUPER USER — tap the title 5 times (or open the page with #admin)
