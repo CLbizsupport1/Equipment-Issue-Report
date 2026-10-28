@@ -100,6 +100,10 @@ body.editing #toast{bottom:96px}
 #toast.on{opacity:.95}
 
 /* PIN modal */
+#appModal{position:fixed;inset:0;background:rgba(10,20,50,.55);display:none;align-items:center;justify-content:center;z-index:80;padding:16px}
+#appModal .box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:360px}
+#appModal h3{margin:0 0 4px;color:var(--navy)}
+.linkbtn{background:none;border:none;color:var(--navy);text-decoration:underline;font:inherit;font-size:14px;margin-top:14px;cursor:pointer}
 #pinModal{position:fixed;inset:0;background:rgba(10,20,50,.55);display:none;align-items:center;justify-content:center;z-index:80;padding:16px}
 #pinModal .box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px}
 #pinModal h3{margin:0 0 4px;color:var(--navy)}
@@ -229,6 +233,7 @@ body.editing #editBar{display:block}
     <p id="doneMsg"></p>
     <button class="btn2 pri" id="sendAgainBtn">Send again 再次发送</button>
     <button class="btn2 sec" id="homeBtn">New report 新报告</button>
+    <button class="linkbtn" id="changeAppBtn" style="display:none">Change email app 更换邮件应用</button>
   </div>
 </main>
 
@@ -244,6 +249,16 @@ body.editing #editBar{display:block}
   <div class="shead"><h3 id="sheetTitle"></h3><button class="sbtn pri" id="sheetDone">Done 完成</button></div>
   <div class="sbody" id="sheetBody"></div>
 </div></div>
+
+<div id="appModal">
+  <div class="box">
+    <h3>Which email app? 用哪个邮件应用？</h3>
+    <div class="hint" style="margin-top:0">Your phone will remember this. 手机会记住您的选择。</div>
+    <button class="btn2 pri" id="appOutlook">📧 Outlook</button>
+    <button class="btn2 sec" id="appOther">Other email app 其他邮件应用<br><small style="font-weight:500">(Mail, Gmail…)</small></button>
+    <button class="linkbtn" id="appCancel">Cancel 取消</button>
+  </div>
+</div>
 
 <div id="pinModal">
   <div class="box">
@@ -598,8 +613,26 @@ function buildBody(d, leadSubject){
   L.push(DATA_MARKER); L.push(JSON.stringify(data)); L.push(DATA_END);
   return L.join("\n");
 }
+/* Email app choice (phones only): "outlook" or "other", remembered on this device */
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+const IS_MOBILE = IS_IOS || IS_ANDROID;
+function mailPref(){ return IS_MOBILE ? (LS.get("eqMailApp")||"") : "other"; }
 function openMailto(d){
-  window.location.href = `mailto:${cur().settings.emailTo}?subject=${encodeURIComponent(buildSubject(d))}&body=${encodeURIComponent(buildBody(d,false))}`;
+  const to = cur().settings.emailTo, sub = encodeURIComponent(buildSubject(d)), body = encodeURIComponent(buildBody(d,false));
+  if(mailPref()==="outlook" && IS_IOS){
+    window.location.href = `ms-outlook://compose?to=${encodeURIComponent(to)}&subject=${sub}&body=${body}`; return;
+  }
+  if(mailPref()==="outlook" && IS_ANDROID){
+    window.location.href = `intent:${to}?subject=${sub}&body=${body}#Intent;scheme=mailto;package=com.microsoft.office.outlook;end`; return;
+  }
+  window.location.href = `mailto:${to}?subject=${sub}&body=${body}`;
+}
+function askMailApp(then){
+  $("appModal").style.display = "flex";
+  const pick = v => { LS.set("eqMailApp", v); $("appModal").style.display = "none"; then(); };
+  $("appOutlook").onclick = ()=>pick("outlook");
+  $("appOther").onclick = ()=>pick("other");
+  $("appCancel").onclick = ()=>{ $("appModal").style.display = "none"; };
 }
 function send(d, files){
   if(files.length){
@@ -621,10 +654,12 @@ function showDone(viaShare, attachManually){
   let msg;
   if(viaShare) msg = `Choose your email app, paste <b>${to}</b> into the <b>To</b> field (already copied), then press <b>Send</b>.<br>选择邮件应用，在<b>收件人</b>栏粘贴地址（已复制），然后按<b>发送</b>。`;
   else if(attachManually) msg = `Your device can't attach files automatically. Please attach the photo/video in the email draft, then press <b>Send</b>.<br>您的设备无法自动附加文件，请在邮件草稿中手动添加照片/视频，然后按<b>发送</b>。`;
+  else if(mailPref()==="outlook") msg = `Outlook should open with everything filled in — press <b>Send</b>. If Outlook didn't open, tap <b>Change email app</b> below.<br>Outlook 会打开并自动填好 — 请按<b>发送</b>。如未打开，请点下方「更换邮件应用」。`;
   else msg = IS_ANDROID
     ? `If asked, pick your email app (e.g. Outlook), then press <b>Send</b>.<br>如有提示，请选择邮件应用（如 Outlook），然后按<b>发送</b>。`
     : `Check the draft and press <b>Send</b>. Submitting here does not send the email.<br>请检查草稿并按<b>发送</b>。在此提交不会自动发送邮件。`;
   $("doneMsg").innerHTML = msg;
+  $("changeAppBtn").style.display = IS_MOBILE ? "" : "none";
   showScreen("done");
 }
 function showScreen(s){
@@ -637,8 +672,11 @@ $("submitBtn").onclick = ()=>{
   const d = collect(); if(!d) return;
   const files = state.files.map(x=>x.file);
   state.last = { d, files };
+  // ask once which email app to use (not needed when photos go through the share sheet)
+  if(!files.length && IS_MOBILE && !mailPref()){ askMailApp(()=>send(d, files)); return; }
   send(d, files);
 };
+$("changeAppBtn").onclick = ()=>{ LS.del("eqMailApp"); if(state.last) askMailApp(()=>send(state.last.d, state.last.files)); };
 $("sendAgainBtn").onclick = ()=>{ if(state.last) send(state.last.d, state.last.files); };
 $("homeBtn").onclick = resetForm;
 function resetForm(){
